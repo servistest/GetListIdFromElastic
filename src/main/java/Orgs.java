@@ -3,6 +3,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Created by alex on 31.5.19.
  */
+@SuppressWarnings("DefaultFileTemplate")
 public class Orgs {
     private String docID;
     private String CommonName;

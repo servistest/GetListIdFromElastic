@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class MultiGetId {
+class MultiGetId {
 
     private static final String SOURCE_HOST = "hdcs-analytics-search-elastic.int.thomsonreuters.com";
     private static final String TARGET_HOST = "alpha-analyticssearch-search-elastic.int.thomsonreuters.com";
@@ -31,8 +31,6 @@ public class MultiGetId {
     private static final String TARGET_SCHEME = "http";
     private static final String SOURCE_INDEX = "eikonsearch_orgs_1.121.0";
     private static final String TARGET_INDEX = "cat_pc_orgs_0.0.3";
-    private static final String SOURCE_TYPE = "orgs";
-    private static final String TARGET_TYPE = "orgs";
     private static final String FILE_NAME = "list_id.txt";
     private static final String FILE_ENCODING = "UTF-8";
     private static final RequestOptions COMMON_OPTIONS;
@@ -41,7 +39,7 @@ public class MultiGetId {
     private static RestHighLevelClient restHighLevelClientSource;
     private static RestHighLevelClient restHighLevelClientTarget;
 
-    private  static  Logger logger = LoggerFactory.getLogger(MultiGetId.class);
+    private  static final Logger logger = LoggerFactory.getLogger(MultiGetId.class);
 
     static {
         RequestOptions.Builder builder = RequestOptions.DEFAULT.toBuilder();
@@ -69,10 +67,12 @@ public class MultiGetId {
 
         List<String> listId = new ArrayList<>();
         Integer countId = COUNT_OF_DOCUMENTS * PRIMARY_SET_MULTIPLIER;
+
         while (listId.size() < COUNT_OF_DOCUMENTS) {
             listId = checkDocsInTargetIndex(getListIdFromSourceIndex(countId));
             countId = countId + (COUNT_OF_DOCUMENTS - listId.size()) * 2;
         }
+
         return listId;
 
     }
@@ -95,13 +95,14 @@ public class MultiGetId {
 
     private static SearchRequest createSearchRequestForSourceIndex(Integer countOfId) {
 
-        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        sourceBuilder.size(countOfId);
-        // get only service fields
-        sourceBuilder.fetchSource(false);
+        SearchSourceBuilder sourceBuilder = getSearchSourceBuilder(countOfId);
+
+        return getSearchRequest(sourceBuilder);
+    }
+
+    private static SearchRequest getSearchRequest(SearchSourceBuilder sourceBuilder) {
 
         MatchAllQueryBuilder matchAllQueryBuilder = new MatchAllQueryBuilder();
-
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.indices(SOURCE_INDEX);
         searchRequest.setBatchedReduceSize(500);
@@ -110,15 +111,23 @@ public class MultiGetId {
         return searchRequest;
     }
 
+    private static SearchSourceBuilder getSearchSourceBuilder(Integer countOfId) {
+
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.size(countOfId);
+        // get only service fields
+        sourceBuilder.fetchSource(false);
+
+        return sourceBuilder;
+    }
+
     private static List<String> responseFromSourceIndexProcessing(SearchResponse searchResponse) {
 
         List<String> listId = new ArrayList<>();
 
         logger.info("Getting documents from source index -->...");
         if (searchResponse != null) {
-            searchResponse.getHits().forEach(x -> {
-                listId.add(x.getId());
-            });
+            searchResponse.getHits().forEach(x -> listId.add(x.getId()));
             logger.info(String.join(",", listId));
         }
         return listId;
@@ -159,11 +168,11 @@ public class MultiGetId {
             e.printStackTrace();
         }
 
-        return ifFiltering(multiGetResponse);
+        return idFiltering(multiGetResponse);
     }
 
 
-    private static List<String> ifFiltering(MultiGetResponse multiGetResponse) {
+    private static List<String> idFiltering(MultiGetResponse multiGetResponse) {
 
         List<String> existListId = new ArrayList<>();
 
@@ -177,12 +186,10 @@ public class MultiGetId {
 
     private static RestHighLevelClient makeConnection(String host, int portOne, int portTwo, String scheme) {
 
-        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(
+        return new RestHighLevelClient(
                 RestClient.builder(
                         new HttpHost(host, portOne, scheme),
                         new HttpHost(host, portTwo, scheme)));
-
-        return restHighLevelClient;
     }
 
     private static synchronized void closeConnection(RestHighLevelClient restHighLevelClient) {
